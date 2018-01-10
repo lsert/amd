@@ -1,6 +1,6 @@
 ECMAScript 2015 (ES2015, formerly ES6) was published almost a year ago. Node.js v6 supports 93% of the ES2015 syntax and features and most modern browsers exceed 90%. However, no JavaScript runtime currently supports ES Modules. (Note that kangax's compatibility table does not yet have an ES Modules column.)
 
-ECMAScript 2015(ES2015,曾经叫 ES6) 已经推出了快一年了。Nodejs v6 支持了 ES2015 93%的语法和特性，大部分的现代浏览器也支持超过90%。然鹅，当前没有任何JavaScript引擎支持ES Modules。
+ECMAScript 2015(ES2015,曾经叫 ES6) 已经推出了快一年了。Nodejs v6 支持了 ES2015 93%的语法和特性，大部分的现代浏览器也支持超过90%。然鹅，当前没有任何JavaScript引擎支持ES Modules。
 
 ECMAScript 2015 defines the ES Modules syntax but ECMAScript does not define a "Loader" specification which determines how Modules are inserted into the runtime. The Loader spec is being defined by WHATWG, but is not yet finalized.
 
@@ -65,7 +65,7 @@ Node.js的最大的一个挑战是没有`<script type="module">`去告诉你这�
 
 Some constraints that were applied in the decision making process include:
 
-我们强制做的一些限制包括：
+我们强制做的一些限制包括：
 
 + Avoiding a "boilerplate tax" (e.g. "use module")
 + Avoiding double-parsing if possible as Modules and Scripts parse differently
