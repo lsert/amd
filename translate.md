@@ -99,4 +99,278 @@ Detection via filename extension provides a simple route to determining the inte
 如果文件扩展名是`.mjs`就按照 ES Module 的方式加载，`.js`的文件将会按照CommonJS的方式加载。    
 
 ## Basic interoperability algorithm
-The following algorithm describes how interoperability between ES Modules and CommonJS can be achieved:
+## 标准通用性算法
+The following algorithm describes how interoperability between ES Modules and CommonJS can be achieved:  
+![算法描述](https://raw.githubusercontent.com/yosuke-furukawa/esmodules_on_node/master/images/output.png)
+
+
+For example, if a developer wanted to create a module that exports both module types (CommonJS and ES Modules) for backward compatibility, their package.json may be defined as:
+
+举个例子 如果一个开发者创建了一个模块，需要同时兼容CommonJS和ES Module，他们的package.json需要显示成如下
+```
+{
+  "name": "test",
+  "version": "0.0.1",
+  "description": "",
+  "main": "./index",    // no file extension
+}
+```
+
+
+The package will then have both an index.mjs and an index.js. The index.mjs is an ES Module, using the new export / import syntax:
+
+这个包就需要同时存在index.mjs和index.js。`index.mjs` 是ES6的模块，使用了新的 export /import 语法;
+```
+// index.mjs
+export default class Foo {
+  //..
+}
+```
+
+And the index.js is a CommonJS style module, using the module.exports object:  
+index.js 是CommonJS 风格的模块。使用module.exports对象
+```
+// index.js
+class Foo {
+  // ...
+}
+module.exports = Foo;
+```
+
+If the version of Node.js being used supports ES Modules via the .mjs file extension, it will first try to find an index.mjs. On the other hand, if the version of Node.js does not support ES Modules (such as Node.js v4 or v6), or it can not find an index.mjs, it will look for an index.js.
+
+如果node.js的版本支持 ES Modules,它会先试图寻找index.mjs。
+如果node.js版本不支持 ES Modules,它不会寻找index.mjs。直接去找index.js。
+
+According to the EP, you would be able to use both require and import to find packages in your node_modules:
+
+根据EP，你可以同时使用require 和 import 去寻找模块。
+
+```
+import mkdirp from 'mkdirp';
+require('mkdirp');
+```
+
+For resolving modules local to your own project or package, you do not need to add a file extensions in your require() or import statements unless you want to be precise. The standard Node.js file resolution algorithm applies when you don't supply an extension, but an .mjs version is looked for before a .js:
+
+为了解决资源定位问题，你没必要在你的require或import引用后面添加文件扩展名，除非你要精确的定位。标准node.js文件解析算法允许你不提供扩展名，但是要注意，.mjs文件的查找优先级是高于.js的。
+```
+require('./foo');
+import './foo';
+// these both look at
+//   ./foo.mjs
+//   ./foo.js
+//   ./foo/index.mjs
+//   ./foo/index.js
+
+// to explicitly load a CJS module, add '.js':
+import './foo.js';
+// to explicitly load an ES module add '.mjs'
+import './bar.mjs';
+```
+
+
+
+## Examples: Consuming CommonJS with ES Modules
+## 例子：用ES Modules 解析 CommonJS。
+### Example 1: Load CommonJS from ES Modules
+### 例子1:在ES Modules里加载CommonJS
+```
+// cjs.js
+module.exports = {
+  default:'my-default',
+  thing:'stuff'
+};
+```
+
+```
+// es.mjs
+
+import * as baz from './cjs.js';
+// baz = {
+//   get default() {return module.exports;},
+//   get thing() {return this.default.thing}.bind(baz)
+// }
+// console.log(baz.default.default); // my-default
+
+import foo from './cjs.js';
+// foo = {default:'my-default', thing:'stuff'};
+
+import {default as bar} from './cjs.js';
+// bar = {default:'my-default', thing:'stuff'};
+```
+
+### Example 2: Export value and assigning "default"
+### 例子2： 输出值和使用default
+```
+// cjs.js
+module.exports = null;
+```
+
+```
+// es.mjs
+import foo from './cjs.js';
+// foo = null;
+
+import * as bar from './cjs.js';
+// bar = {default:null};
+```
+
+### Example 3: Single-function export
+### 例子3：单函数输出
+```
+// cjs.js
+module.exports = function two() {
+  return 2;
+};
+```
+
+```
+// es.mjs
+import foo from './cjs.js';
+foo(); // 2
+
+import * as bar from './cjs.js';
+bar.name; // 'two' ( get function name)
+bar.default(); // 2 ( assigned default function )
+bar(); // throws, bar is not a function
+```
+
+## Examples: Consuming ES Modules with CommonJS
+## 例子：在CommonJS里面处理ES Modules
+### Example 1: Using export default
+### 例子1：使用export default;
+
+```
+// es.mjs
+let foo = {bar:'my-default'};
+export default foo;
+foo = null; // this null value does not effect import value.
+```
+
+```
+// cjs.js
+const es_namespace = require('./es');
+// es_namespace ~= {
+//   get default() {
+//     return result_from_evaluating_foo;
+//   }
+// }
+console.log(es_namespace.default);
+// {bar:'my-default'}
+```
+
+### Example 2: Using export
+```
+// es.mjs
+export let foo = {bar:'my-default'};
+export {foo as bar};
+export function f() {};
+export class c {};
+```
+
+
+```
+// cjs.js
+const es_namespace = require('./es');
+// es_namespace ~= {
+//   get foo() {return foo;}
+//   get bar() {return foo;}
+//   get f() {return f;}
+//   get c() {return c;}
+// }
+
+```
+
+
+## Current state of discussion
+## 
+Although built in a collaborative process, taking into account proposals for alternatives, Bradley's landed EP received a prominent counter-proposal from outside of the EP process. Going by the name "In Defense of .js", this counter-proposal relies on the use of package.json rather than a new file extension. Even though this option had been previously discussed, this new proposal contains some interesting additions.
+虽然建立在一个合作的过程中，考虑到替代方案的建议， Bradley's收到了一个EP流程之外的反对提案，`In Defense of .js`。（大意为要保护.js扩展名）。
+这个反对提案依赖package.json去维护模块类型，而不是使用一个新的文件扩展名，尽管他们先前讨论过类似的做法，但是这个新提案包含了一些有意思的补充。
+
+In Defense of .js presents the following rules for determining what format to load a file, with the same rules for both require and import:
+
+在`Defense of .js`里提出了以下的一些规则，来判定加载的文件是什么类型的，这些规则同时适用 require 和import。
+
++ If package.json has "main" field but not a "module" field, all files in that package are loaded as CommonJS.
++ If a package.json has a "module" field but not "main" field, all files in that package are loaded as ES Modules.
+If a package.json has neither "main" nor "module" fields, it will depend on on whether an index.js or a module.js exists in the package as to whether to load files in the package as CommonJS or ES Modules respectively.
++ If a package.json has both "main" and "module" fields, files in the package will be loaded as CommonJS unless they are enumerated in the "module" field in which case they will be loaded as ES Modules, this may also include directories.
++ If there is no package.json in place (e.g. require('c:/foo')), it will default to being loaded as CommonJS.
++ A special "modules.root" field in package.json, files under the directory specified will be loaded as ES Modules. Additionally, files loaded relative to the package itself (e.g. require('lodash/array')) will load from within this directory.
+
++ 如果`package.json`有`main`字段，但是没有`module`字段，则所有的文件都按照CommonJS的方式加载。
+
++ 如果`package.json`有`module`字段，但是没有`main`字段，则所有的文件都按照ES Module的方式加载。
+
++ 如果`package.json`既没有`main`，也没有`module`字段，则根据你的包里面有`index.js`还是`modules.js`，去分别加载不同的模块类型。
+
++ 如果`package.json`两者都有，则一般文件按照CommonJS的方式加载,在 `module`字段内能被枚举到的文件或者文件夹里面的包按照ES Module方式加载。
+
++ 如果没有`package.json`，则使用CommonJS方式加载。
+
++ 如果`package.json`有一个特殊的字段`modules.root`,指定目录下的文件则会按照ES Module方式加载。
+
+
+
+## In Defense of .js Examples
+```
+// package.json
+// all files loaded as CommonJS
+{
+  "main": "index.js" // default module for package
+}
+```
+
+```
+// package.json
+// default to CommonJS, conditional loading of ES Modules
+{
+  "main": "index.js", // used by older versions of Node.js as default module, CommonJS
+  "module": "module.js" // used by newer versions of Node.js as default module, ES Module
+}
+```
+
+```
+// package.json
+// CommonJS with directory exceptions
+{
+  "main": "index.js",
+  "module": "module.js",
+  "modules.root": "lib" // all files loaded within this directory will be ES Modules
+}
+```
+
+The above example is used to show how to maintain backward compatibility for packages. For older versions of Node.js, require('foo/bar') will look for a CommonJS bar.js in the root of the package. However, for newer versions of Node.js, the "modules.root": "lib" directory will dictate that loading 'foo/bar' will look for an ES Module at lib/bar.js.
+
+上面的这些例子展示了如何取维护包的向后兼容，对于老版本的Node.js，
+`require('foo/bar')`去根目录寻找CommonJS模块的bar.js。
+然而 对于新版的Node.js `"modules.root": "lib"` 会使用 ES Modue 加载 `lib/bar.js`。
+
+
+## Hard choices
+## 艰难的选择
+In Defense of .js presents a view that we need to switch to ES Modules from CommonJS and prioritizes such a future. On the other hand, the Node.js EP prioritizes compatibility and interoperability.
+`In Defense of .js`提出的观点是,我们需要手动从CommonJS 切换到ES Modules，并且优先考虑未来流行的ES Module。
+另外一方面，Node.js EP优先考虑兼容性和互用性。
+
+
+Bradley recently wrote a post attempting to further explain the difficult choice and why a file extension was an appropriate way forward. In it, he goes into further details about why it is not possible to parse a file to determine whether it is an ES Module or not. He also further explores the difficulties of having an out-of-band descriptor (e.g. package.json) determine what type of content is in a .js file.
+
+Bradley 最近写了一篇帖子试图去更深刻的解释这个艰难的选择，为什么使用新的文件扩展名是一个合适的方式。在文章中，他深入的解释了为什么在不能解析一个文件的时候确定它到底是不是ES Module，他也深入探索了用一个外部的描述去维护模块类型的复杂性。
+
+Although it may be sad to consider the loss of a universal .js file extension, it's worth noting that other languages have already paved this path. Perl for instance uses .pl for Perl Script, and .pm for Perl Module.
+
+虽然可能会有一点伤心的地方是我们失去了通用的 `.js`的扩展名，值得注意的是，其他的语言也采用了这种方式去处理。比如 Perl脚本的实例用的是`.pl`但是 Perl Module使用的是`.pm`。
+
+
+## Getting involved
+## 参与进来
+即使Node.js CTC已经接受了目前的EP形式，并且表示了如何在Node.js中实现ES模块（如果它们完全在Node.js中实现），那么讨论仍在继续，而且还有空间 为了改变。 您可以参与Node.js EP存储库问题列表中的Node.js社区。 请务必先查看现有意见，看看您的疑虑是否已经解决。
+
+虽然 Node.js CTC接受了 EP 
+
+Bradley and the Node.js CTC are very concerned about getting this decision right, in the interests of Node.js users everywhere. The choices that Node.js is having to make to accommodate ES Modules are difficult and are not being approached lightly.
+
+Bradley和Node.js CTC非常关心为了Node.js用户的利益而做出正确的决定。 Node.js为了适应ES模块而做出的选择是困难的，并且不会被轻易达到。
