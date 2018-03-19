@@ -88,48 +88,9 @@ class App {
         this.middlewareList.push(...callback);
     }
 }
-function mink(http) {
+module.exports = function mink(http) {
     let app = new App(http.createServer(function (...arg) {
         app.request.apply(app, arg);
     }));
     return app;
 }
-
-let app = mink(http).listen('8000');
-let sybTime = Symbol();
-app.use(async (req, ctx) => {
-    let time = Date.now();
-    ctx[sybTime] = time;
-});
-
-app.onFinished(function (req, ctx) {
-    console.log(req.method, req.url.path, (Date.now() - ctx[sybTime]) + 'ms', new Date());
-});
-
-app.use(async (req, ctx) => {
-    ctx.body = "hello world";
-    ctx.status = 200;
-    return false;
-});
-
-app.use(async (req, ctx) => {
-    ctx.body = "404 not found";
-    ctx.status = 404;
-    return '404 not found';
-});
-app.use(async (req, ctx) => {
-    121234();
-});
-
-app.use(async (req, ctx) => {
-    console.log(req, ctx);
-});
-
-app.use(async (err, req, ctx) => {
-    if (err instanceof Error) {
-        ctx.body = err.stack;
-    } else {
-        ctx.body = String(err);
-    }
-    ctx.status = ctx.status || 500;
-})
