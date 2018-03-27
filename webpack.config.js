@@ -1,6 +1,7 @@
 module.exports = {
-    entry:"./index",
-    output:{
-        filename:'[name].bd.js',
+    entry: "./index",
+    output: {
+        publicPath: '/sss',
+        filename: '[name].bd.js',
     }
 }
