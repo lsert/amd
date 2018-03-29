@@ -1,0 +1,15 @@
+# decorator在项目中的应用
+
+## 修改生命周期方法
++ bdclassName()
++ ilog()
++ pubsub
++ pureComponent
++ staticMethod
++ render
+
++ 修改三要素  [参数,this,返回值]
++ readonly
++ log
+
+
